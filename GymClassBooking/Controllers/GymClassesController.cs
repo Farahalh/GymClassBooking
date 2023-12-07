@@ -7,16 +7,20 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using GymClassBooking.Data;
 using GymClassBooking.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 
 namespace GymClassBooking.Controllers
 {
     public class GymClassesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public GymClassesController(ApplicationDbContext context)
+        public GymClassesController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         // GET: GymClasses
@@ -28,19 +32,17 @@ namespace GymClassBooking.Controllers
         // GET: GymClasses/Details/5
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return RedirectToAction(nameof(Index));
 
-            var gymClass = await _context.GymClasses
-                .FirstOrDefaultAsync(m => m.ID == id);
-            if (gymClass == null)
-            {
-                return NotFound();
-            }
+            var gymClassWithAttendees = await _context.GymClasses
+                .Where(g => g.Id == id)
+                .Include(c => c.AttendingMembers)
+                .ThenInclude(u => u.User).FirstOrDefaultAsync();
 
-            return View(gymClass);
+            if (gymClassWithAttendees == null)
+                return RedirectToAction(nameof(Index));
+
+            return View(gymClassWithAttendees);
         }
 
         // GET: GymClasses/Create
@@ -56,6 +58,7 @@ namespace GymClassBooking.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("ID,Name,StartTime,Duration,Description")] GymClass gymClass)
         {
+            // ModelState.Remove("AttendingMembers");
             if (ModelState.IsValid)
             {
                 _context.Add(gymClass);
@@ -88,7 +91,7 @@ namespace GymClassBooking.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("ID,Name,StartTime,Duration,Description")] GymClass gymClass)
         {
-            if (id != gymClass.ID)
+            if (id != gymClass.Id)
             {
                 return NotFound();
             }
@@ -102,7 +105,7 @@ namespace GymClassBooking.Controllers
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!GymClassExists(gymClass.ID))
+                    if (!GymClassExists(gymClass.Id))
                     {
                         return NotFound();
                     }
@@ -125,7 +128,7 @@ namespace GymClassBooking.Controllers
             }
 
             var gymClass = await _context.GymClasses
-                .FirstOrDefaultAsync(m => m.ID == id);
+                .FirstOrDefaultAsync(m => m.Id == id);
             if (gymClass == null)
             {
                 return NotFound();
@@ -151,7 +154,37 @@ namespace GymClassBooking.Controllers
 
         private bool GymClassExists(int id)
         {
-            return _context.GymClasses.Any(e => e.ID == id);
+            return _context.GymClasses.Any(e => e.Id == id);
+        }
+
+        [Authorize]
+        public async Task<IActionResult> BookingToggle(int? id)
+        {
+            if (id == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+
+            var attending = await _context.ApplicationUserGymClasses.FindAsync(userId, id);
+
+            if (attending == null)
+            {
+                var booking = new ApplicationUserGymClass
+                {
+                    ApplicationUserId = userId,
+                    GymClassId = (int)id
+                };
+                _context.ApplicationUserGymClasses.Add(booking);
+            }
+
+            else
+            {
+                _context.Remove(attending);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Index));
         }
     }
 }
