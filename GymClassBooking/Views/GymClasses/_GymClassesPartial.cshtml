@@ -1,0 +1,31 @@
+﻿@model IEnumerable<GymClassesViewModel>
+
+@foreach (var item in Model)
+{
+    <tr>
+        <td>
+            <a asp-action="Details" asp-route-id="@item.Id">@item.Name</a>
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.StartTime)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Duration)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Description)
+        </td>
+        <td>
+            @if (User.Identity.IsAuthenticated)
+            {
+                <a asp-action="BookingToggle" asp-route-id="@item.Id">Book</a> <span>|</span>
+            }
+            @if (User.IsInRole("Admin"))
+            {
+                <span>|</span>
+                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> <span>|</span>
+                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+            }
+        </td>
+    </tr>
+}

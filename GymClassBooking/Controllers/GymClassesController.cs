@@ -9,17 +9,21 @@ using GymClassBooking.Data;
 using GymClassBooking.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using AutoMapper;
+using GymClassBooking.Models.ViewModels;
 
 namespace GymClassBooking.Controllers
 {
     [Authorize]
     public class GymClassesController : Controller
     {
+        private readonly IMapper _mapper;
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public GymClassesController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public GymClassesController(IMapper mapper, ApplicationDbContext context, UserManager<ApplicationUser> userManager)
         {
+            _mapper = mapper;
             _context = context;
             _userManager = userManager;
         }
@@ -28,7 +32,15 @@ namespace GymClassBooking.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Index()
         {
-            return View(await _context.GymClasses.ToListAsync());
+            var gymClasses = await _context.GymClasses
+                .Include(g=>g.AttendingMembers)
+                .ToListAsync();
+
+            var model = _mapper.Map<IndexViewModel>(gymClasses);
+
+            return View(model);
+
+            //return View(await _context.GymClasses.ToListAsync());
         }
 
         // GET: GymClasses/Details/5
