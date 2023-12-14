@@ -18,7 +18,8 @@
         <td>
             @if (User.Identity.IsAuthenticated)
             {
-                <a asp-action="BookingToggle" asp-route-id="@item.Id">Book</a>
+                <a asp-action="BookingToggle" asp-route-id="@item.Id">Book</a> <span>|</span>
+            }
             @if (User.IsInRole("Admin"))
             {
                 <span>|</span>
